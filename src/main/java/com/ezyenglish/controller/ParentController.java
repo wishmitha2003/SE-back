@@ -30,7 +30,7 @@ public class ParentController {
      */
     @GetMapping("/{id}/children")
     @PreAuthorize("hasRole('PARENT')")
-    public ResponseEntity<List<UserResponse>> getChildren(@PathVariable String id) {
+    public ResponseEntity<List<UserResponse>> getChildren(@PathVariable("id") String id) {
         List<UserResponse> children = parentService.getChildren(id);
         return ResponseEntity.ok(children);
     }
@@ -41,7 +41,7 @@ public class ParentController {
     @PostMapping("/{id}/children")
     @PreAuthorize("hasRole('PARENT')")
     public ResponseEntity<ParentProfile> addChild(
-            @PathVariable String id,
+            @PathVariable("id") String id,
             @RequestBody Map<String, String> request) {
 
         String childStudentId = request.get("childStudentId");
@@ -55,8 +55,8 @@ public class ParentController {
     @DeleteMapping("/{id}/children/{childId}")
     @PreAuthorize("hasRole('PARENT')")
     public ResponseEntity<ParentProfile> removeChild(
-            @PathVariable String id,
-            @PathVariable String childId) {
+            @PathVariable("id") String id,
+            @PathVariable("childId") String childId) {
 
         ParentProfile profile = parentService.removeChild(id, childId);
         return ResponseEntity.ok(profile);

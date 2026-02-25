@@ -26,7 +26,7 @@ public class TeacherService {
      */
     public TeacherProfile assignCourse(String userId, String courseId) {
         TeacherProfile profile = teacherProfileRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Teacher profile not found for userId: " + userId));
+                .orElseGet(() -> teacherProfileRepository.save(new TeacherProfile(userId)));
 
         if (!profile.getTaughtCourses().contains(courseId)) {
             profile.getTaughtCourses().add(courseId);
@@ -41,7 +41,7 @@ public class TeacherService {
      */
     public TeacherProfile removeCourse(String userId, String courseId) {
         TeacherProfile profile = teacherProfileRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Teacher profile not found for userId: " + userId));
+                .orElseGet(() -> teacherProfileRepository.save(new TeacherProfile(userId)));
 
         profile.getTaughtCourses().remove(courseId);
         teacherProfileRepository.save(profile);
@@ -61,6 +61,6 @@ public class TeacherService {
      */
     public TeacherProfile getTeacherProfile(String userId) {
         return teacherProfileRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Teacher profile not found for userId: " + userId));
+                .orElseGet(() -> teacherProfileRepository.save(new TeacherProfile(userId)));
     }
 }

@@ -42,7 +42,7 @@ public class UserController {
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('TEACHER') or hasRole('PARENT')")
-    public ResponseEntity<UserResponse> getUserById(@PathVariable String id) {
+    public ResponseEntity<UserResponse> getUserById(@PathVariable("id") String id) {
         UserResponse response = userService.getUserById(id);
         return ResponseEntity.ok(response);
     }
@@ -63,7 +63,7 @@ public class UserController {
      */
     @PutMapping("/{id}")
     public ResponseEntity<UserResponse> updateUser(
-            @PathVariable String id,
+            @PathVariable("id") String id,
             @Valid @RequestBody UserUpdateRequest request) {
 
         // Verify the user is updating their own profile or has elevated role
@@ -73,7 +73,7 @@ public class UserController {
         boolean isOwnProfile = userDetails.getId().equals(id);
         boolean hasElevatedRole = auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_TEACHER") ||
-                              a.getAuthority().equals("ROLE_PARENT"));
+                        a.getAuthority().equals("ROLE_PARENT"));
 
         if (!isOwnProfile && !hasElevatedRole) {
             return ResponseEntity.status(403).build();
@@ -87,8 +87,18 @@ public class UserController {
      * DELETE /api/users/{id} — Delete a user (Teachers only — acting as admin).
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('TEACHER')")
-    public ResponseEntity<MessageResponse> deleteUser(@PathVariable String id) {
+    public ResponseEntity<MessageResponse> deleteUser(@PathVariable("id") String id) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
+
+        boolean isOwnAccount = userDetails.getId().equals(id);
+        boolean isTeacher = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_TEACHER"));
+
+        if (!isOwnAccount && !isTeacher) {
+            return ResponseEntity.status(403).build();
+        }
+
         userService.deleteUser(id);
         return ResponseEntity.ok(new MessageResponse("User deleted successfully!"));
     }

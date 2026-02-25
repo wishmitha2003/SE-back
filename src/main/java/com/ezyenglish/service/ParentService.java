@@ -2,13 +2,11 @@ package com.ezyenglish.service;
 
 import com.ezyenglish.dto.response.UserResponse;
 import com.ezyenglish.model.ParentProfile;
-import com.ezyenglish.model.User;
 import com.ezyenglish.repository.ParentProfileRepository;
 import com.ezyenglish.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -32,7 +30,7 @@ public class ParentService {
      */
     public List<UserResponse> getChildren(String parentUserId) {
         ParentProfile profile = parentProfileRepository.findByUserId(parentUserId)
-                .orElseThrow(() -> new RuntimeException("Parent profile not found for userId: " + parentUserId));
+                .orElseGet(() -> parentProfileRepository.save(new ParentProfile(parentUserId)));
 
         return profile.getChildStudentIds().stream()
                 .map(childId -> {
@@ -51,7 +49,7 @@ public class ParentService {
      */
     public ParentProfile addChild(String parentUserId, String childStudentId) {
         ParentProfile profile = parentProfileRepository.findByUserId(parentUserId)
-                .orElseThrow(() -> new RuntimeException("Parent profile not found for userId: " + parentUserId));
+                .orElseGet(() -> parentProfileRepository.save(new ParentProfile(parentUserId)));
 
         // Verify the child exists
         userRepository.findById(childStudentId)
@@ -70,7 +68,7 @@ public class ParentService {
      */
     public ParentProfile removeChild(String parentUserId, String childStudentId) {
         ParentProfile profile = parentProfileRepository.findByUserId(parentUserId)
-                .orElseThrow(() -> new RuntimeException("Parent profile not found for userId: " + parentUserId));
+                .orElseGet(() -> parentProfileRepository.save(new ParentProfile(parentUserId)));
 
         profile.getChildStudentIds().remove(childStudentId);
         parentProfileRepository.save(profile);
@@ -83,6 +81,6 @@ public class ParentService {
      */
     public ParentProfile getParentProfile(String parentUserId) {
         return parentProfileRepository.findByUserId(parentUserId)
-                .orElseThrow(() -> new RuntimeException("Parent profile not found for userId: " + parentUserId));
+                .orElseGet(() -> parentProfileRepository.save(new ParentProfile(parentUserId)));
     }
 }

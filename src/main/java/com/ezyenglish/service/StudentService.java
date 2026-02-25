@@ -21,7 +21,7 @@ public class StudentService {
      */
     public StudentProfile enrollInCourse(String userId, String courseId) {
         StudentProfile profile = studentProfileRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Student profile not found for userId: " + userId));
+                .orElseGet(() -> studentProfileRepository.save(new StudentProfile(userId)));
 
         if (!profile.getEnrolledCourses().contains(courseId)) {
             profile.getEnrolledCourses().add(courseId);
@@ -36,7 +36,7 @@ public class StudentService {
      */
     public StudentProfile unenrollFromCourse(String userId, String courseId) {
         StudentProfile profile = studentProfileRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Student profile not found for userId: " + userId));
+                .orElseGet(() -> studentProfileRepository.save(new StudentProfile(userId)));
 
         profile.getEnrolledCourses().remove(courseId);
         studentProfileRepository.save(profile);
@@ -49,7 +49,7 @@ public class StudentService {
      */
     public StudentProfile getStudentProfile(String userId) {
         return studentProfileRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Student profile not found for userId: " + userId));
+                .orElseGet(() -> studentProfileRepository.save(new StudentProfile(userId)));
     }
 
     /**
@@ -64,7 +64,7 @@ public class StudentService {
      */
     public StudentProfile updateProgress(String userId, double progress, int points) {
         StudentProfile profile = studentProfileRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Student profile not found for userId: " + userId));
+                .orElseGet(() -> studentProfileRepository.save(new StudentProfile(userId)));
 
         profile.setOverallProgress(progress);
         profile.setTotalPoints(points);

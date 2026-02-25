@@ -9,6 +9,9 @@ import lombok.Data;
 @Data
 public class UserUpdateRequest {
 
+    @Size(max = 20)
+    private String username;
+
     @Size(max = 50)
     private String firstName;
 
@@ -19,6 +22,10 @@ public class UserUpdateRequest {
     private String email;
 
     private String phone;
+    private String address;
+    private String city;
+    private String postalCode;
+    private String country;
 
     // Student-specific
     private String gradeLevel;

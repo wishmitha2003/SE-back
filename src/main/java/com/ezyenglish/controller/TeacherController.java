@@ -31,7 +31,7 @@ public class TeacherController {
     @PostMapping("/{id}/courses")
     @PreAuthorize("hasRole('TEACHER')")
     public ResponseEntity<TeacherProfile> assignCourse(
-            @PathVariable String id,
+            @PathVariable("id") String id,
             @RequestBody Map<String, String> request) {
 
         String courseId = request.get("courseId");
@@ -40,13 +40,14 @@ public class TeacherController {
     }
 
     /**
-     * DELETE /api/teachers/{id}/courses/{courseId} — Remove a course from a teacher.
+     * DELETE /api/teachers/{id}/courses/{courseId} — Remove a course from a
+     * teacher.
      */
     @DeleteMapping("/{id}/courses/{courseId}")
     @PreAuthorize("hasRole('TEACHER')")
     public ResponseEntity<TeacherProfile> removeCourse(
-            @PathVariable String id,
-            @PathVariable String courseId) {
+            @PathVariable("id") String id,
+            @PathVariable("courseId") String courseId) {
 
         TeacherProfile profile = teacherService.removeCourse(id, courseId);
         return ResponseEntity.ok(profile);
@@ -71,8 +72,8 @@ public class TeacherController {
     @GetMapping("/{id}/students")
     @PreAuthorize("hasRole('TEACHER')")
     public ResponseEntity<List<StudentProfile>> getStudentsByCourse(
-            @PathVariable String id,
-            @RequestParam String courseId) {
+            @PathVariable("id") String id,
+            @RequestParam("courseId") String courseId) {
 
         List<StudentProfile> students = teacherService.getStudentsByCourse(courseId);
         return ResponseEntity.ok(students);
