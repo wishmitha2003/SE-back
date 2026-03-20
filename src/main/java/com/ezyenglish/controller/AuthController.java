@@ -87,7 +87,7 @@ public class AuthController {
      * POST /api/auth/signup — Register a new user with specified roles.
      * Automatically creates the corresponding role-specific profile.
      */
-    @PostMapping("/signup")
+    @PostMapping({"/signup","/register"})
     public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
 
         // Check for duplicate username
