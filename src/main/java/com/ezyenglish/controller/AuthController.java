@@ -4,8 +4,17 @@ import com.ezyenglish.dto.request.LoginRequest;
 import com.ezyenglish.dto.request.SignupRequest;
 import com.ezyenglish.dto.response.JwtResponse;
 import com.ezyenglish.dto.response.MessageResponse;
-import com.ezyenglish.model.*;
-import com.ezyenglish.repository.*;
+import com.ezyenglish.model.ERole;
+import com.ezyenglish.model.ParentProfile;
+import com.ezyenglish.model.Role;
+import com.ezyenglish.model.StudentProfile;
+import com.ezyenglish.model.TeacherProfile;
+import com.ezyenglish.model.User;
+import com.ezyenglish.repository.ParentProfileRepository;
+import com.ezyenglish.repository.RoleRepository;
+import com.ezyenglish.repository.StudentProfileRepository;
+import com.ezyenglish.repository.TeacherProfileRepository;
+import com.ezyenglish.repository.UserRepository;
 import com.ezyenglish.security.jwt.JwtUtils;
 import com.ezyenglish.security.service.UserDetailsImpl;
 import jakarta.validation.Valid;
@@ -59,13 +68,15 @@ public class AuthController {
     /**
      * POST /api/auth/signin — Authenticate user and return JWT.
      */
-    @PostMapping("/signin")
+    @PostMapping({"/signin","login"})
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
 
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         loginRequest.getUsername(),
-                        loginRequest.getPassword()));
+                        loginRequest.getPassword()
+                )
+        );
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String jwt = jwtUtils.generateJwtToken(authentication);
@@ -75,23 +86,29 @@ public class AuthController {
                 .map(item -> item.getAuthority())
                 .collect(Collectors.toList());
 
-        return ResponseEntity.ok(new JwtResponse(
-                jwt,
-                userDetails.getId(),
-                userDetails.getUsername(),
-                userDetails.getEmail(),
-                roles));
+        return ResponseEntity.ok(
+                new JwtResponse(
+                        jwt,
+                        userDetails.getId(),
+                        userDetails.getUsername(),
+                        userDetails.getEmail(),
+                        roles
+                )
+        );
     }
 
     /**
-     * POST /api/auth/signup — Register a new user with specified roles.
-     * Automatically creates the corresponding role-specific profile.
+     * POST /api/auth/signup or /api/auth/register — Register a new user.
      */
-    @PostMapping({"/signup","/register"})
+    @PostMapping({"/signup", "/register"})
     public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
+        System.out.println("REGISTER API HIT");
+        System.out.println("Username: " + signUpRequest.getUsername());
+        System.out.println("Email: " + signUpRequest.getEmail());
 
         // Check for duplicate username
         if (userRepository.existsByUsername(signUpRequest.getUsername())) {
+            System.out.println("Username already taken");
             return ResponseEntity
                     .badRequest()
                     .body(new MessageResponse("Error: Username is already taken!"));
@@ -99,6 +116,7 @@ public class AuthController {
 
         // Check for duplicate email
         if (userRepository.existsByEmail(signUpRequest.getEmail())) {
+            System.out.println("Email already in use");
             return ResponseEntity
                     .badRequest()
                     .body(new MessageResponse("Error: Email is already in use!"));
@@ -108,7 +126,8 @@ public class AuthController {
         User user = new User(
                 signUpRequest.getUsername(),
                 signUpRequest.getEmail(),
-                encoder.encode(signUpRequest.getPassword()));
+                encoder.encode(signUpRequest.getPassword())
+        );
 
         user.setFirstName(signUpRequest.getFirstName());
         user.setLastName(signUpRequest.getLastName());
@@ -119,10 +138,10 @@ public class AuthController {
         Set<Role> roles = new HashSet<>();
 
         if (strRoles == null || strRoles.isEmpty()) {
-            // Default to ROLE_STUDENT
             Role studentRole = roleRepository.findByName(ERole.ROLE_STUDENT)
                     .orElseThrow(() -> new RuntimeException("Error: Role ROLE_STUDENT is not found. Please seed the database."));
             roles.add(studentRole);
+            System.out.println("Assigned default role: ROLE_STUDENT");
         } else {
             strRoles.forEach(role -> {
                 switch (role.toLowerCase()) {
@@ -130,17 +149,22 @@ public class AuthController {
                         Role teacherRole = roleRepository.findByName(ERole.ROLE_TEACHER)
                                 .orElseThrow(() -> new RuntimeException("Error: Role ROLE_TEACHER is not found."));
                         roles.add(teacherRole);
+                        System.out.println("Assigned role: ROLE_TEACHER");
                         break;
+
                     case "parent":
                         Role parentRole = roleRepository.findByName(ERole.ROLE_PARENT)
                                 .orElseThrow(() -> new RuntimeException("Error: Role ROLE_PARENT is not found."));
                         roles.add(parentRole);
+                        System.out.println("Assigned role: ROLE_PARENT");
                         break;
+
                     case "student":
                     default:
                         Role studentRole = roleRepository.findByName(ERole.ROLE_STUDENT)
                                 .orElseThrow(() -> new RuntimeException("Error: Role ROLE_STUDENT is not found."));
                         roles.add(studentRole);
+                        System.out.println("Assigned role: ROLE_STUDENT");
                         break;
                 }
             });
@@ -148,6 +172,7 @@ public class AuthController {
 
         user.setRoles(roles);
         userRepository.save(user);
+        System.out.println("User saved with ID: " + user.getId());
 
         // Create role-specific profile(s)
         for (Role role : roles) {
@@ -156,23 +181,32 @@ public class AuthController {
                     if (!studentProfileRepository.existsByUserId(user.getId())) {
                         StudentProfile studentProfile = new StudentProfile(user.getId());
                         studentProfileRepository.save(studentProfile);
+                        System.out.println("Student profile created");
                     }
                     break;
+
                 case ROLE_TEACHER:
                     if (!teacherProfileRepository.existsByUserId(user.getId())) {
                         TeacherProfile teacherProfile = new TeacherProfile(user.getId());
                         teacherProfileRepository.save(teacherProfile);
+                        System.out.println("Teacher profile created");
                     }
                     break;
+
                 case ROLE_PARENT:
                     if (!parentProfileRepository.existsByUserId(user.getId())) {
                         ParentProfile parentProfile = new ParentProfile(user.getId());
                         parentProfileRepository.save(parentProfile);
+                        System.out.println("Parent profile created");
                     }
+                    break;
+
+                default:
                     break;
             }
         }
 
+        System.out.println("Registration completed successfully");
         return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
     }
 }
