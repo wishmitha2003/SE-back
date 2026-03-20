@@ -2,21 +2,25 @@ package com.ezyenglish.controller;
 
 import com.ezyenglish.dto.request.LoginRequest;
 import com.ezyenglish.dto.request.SignupRequest;
+import com.ezyenglish.dto.request.VerifyOtpRequest;
 import com.ezyenglish.dto.response.JwtResponse;
 import com.ezyenglish.dto.response.MessageResponse;
 import com.ezyenglish.model.ERole;
 import com.ezyenglish.model.ParentProfile;
+import com.ezyenglish.model.PendingUser;
 import com.ezyenglish.model.Role;
 import com.ezyenglish.model.StudentProfile;
 import com.ezyenglish.model.TeacherProfile;
 import com.ezyenglish.model.User;
 import com.ezyenglish.repository.ParentProfileRepository;
+import com.ezyenglish.repository.PendingUserRepository;
 import com.ezyenglish.repository.RoleRepository;
 import com.ezyenglish.repository.StudentProfileRepository;
 import com.ezyenglish.repository.TeacherProfileRepository;
 import com.ezyenglish.repository.UserRepository;
 import com.ezyenglish.security.jwt.JwtUtils;
 import com.ezyenglish.security.service.UserDetailsImpl;
+import com.ezyenglish.service.EmailService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -27,19 +31,23 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * Authentication controller — handles signup and signin.
- * All endpoints are public (/api/auth/**).
- */
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
+
+    @Autowired
+    private PendingUserRepository pendingUserRepository;
+
+    @Autowired
+    private EmailService emailService;
 
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -65,10 +73,7 @@ public class AuthController {
     @Autowired
     private JwtUtils jwtUtils;
 
-    /**
-     * POST /api/auth/signin — Authenticate user and return JWT.
-     */
-    @PostMapping({"/signin","login"})
+    @PostMapping({"/signin", "/login"})
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
 
         Authentication authentication = authenticationManager.authenticate(
@@ -97,51 +102,90 @@ public class AuthController {
         );
     }
 
-    /**
-     * POST /api/auth/signup or /api/auth/register — Register a new user.
-     */
     @PostMapping({"/signup", "/register"})
     public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
         System.out.println("REGISTER API HIT");
         System.out.println("Username: " + signUpRequest.getUsername());
         System.out.println("Email: " + signUpRequest.getEmail());
 
-        // Check for duplicate username
         if (userRepository.existsByUsername(signUpRequest.getUsername())) {
-            System.out.println("Username already taken");
-            return ResponseEntity
-                    .badRequest()
+            return ResponseEntity.badRequest()
                     .body(new MessageResponse("Error: Username is already taken!"));
         }
 
-        // Check for duplicate email
         if (userRepository.existsByEmail(signUpRequest.getEmail())) {
-            System.out.println("Email already in use");
-            return ResponseEntity
-                    .badRequest()
+            return ResponseEntity.badRequest()
                     .body(new MessageResponse("Error: Email is already in use!"));
         }
 
-        // Create new user account
+        if (pendingUserRepository.existsByUsername(signUpRequest.getUsername())) {
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("Error: Username is pending verification!"));
+        }
+
+        if (pendingUserRepository.existsByEmail(signUpRequest.getEmail())) {
+            pendingUserRepository.deleteByEmail(signUpRequest.getEmail());
+        }
+
+        String otp = String.format("%06d", new Random().nextInt(1000000));
+        System.out.println("Generated OTP: " + otp);
+
+        PendingUser pendingUser = new PendingUser();
+        pendingUser.setUsername(signUpRequest.getUsername());
+        pendingUser.setEmail(signUpRequest.getEmail());
+        pendingUser.setPassword(encoder.encode(signUpRequest.getPassword()));
+        pendingUser.setFirstName(signUpRequest.getFirstName());
+        pendingUser.setLastName(signUpRequest.getLastName());
+        pendingUser.setPhone(signUpRequest.getPhone());
+        pendingUser.setRoles(signUpRequest.getRoles());
+        pendingUser.setOtp(otp);
+        pendingUser.setOtpExpiryTime(LocalDateTime.now().plusMinutes(10));
+
+        pendingUserRepository.save(pendingUser);
+        emailService.sendOtpEmail(signUpRequest.getEmail(), otp);
+
+        System.out.println("Pending user saved and OTP email sent");
+        return ResponseEntity.ok(
+                new MessageResponse("OTP sent to email. Please verify to complete registration.")
+        );
+    }
+
+    @PostMapping("/verify-registration-otp")
+    public ResponseEntity<?> verifyRegistrationOtp(@Valid @RequestBody VerifyOtpRequest request) {
+        System.out.println("VERIFY OTP API HIT");
+        System.out.println("Email: " + request.getEmail());
+        System.out.println("OTP: " + request.getOtp());
+
+        PendingUser pendingUser = pendingUserRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("Pending registration not found"));
+
+        if (!pendingUser.getOtp().equals(request.getOtp())) {
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("Invalid OTP"));
+        }
+
+        if (pendingUser.getOtpExpiryTime().isBefore(LocalDateTime.now())) {
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("OTP expired"));
+        }
+
         User user = new User(
-                signUpRequest.getUsername(),
-                signUpRequest.getEmail(),
-                encoder.encode(signUpRequest.getPassword())
+                pendingUser.getUsername(),
+                pendingUser.getEmail(),
+                pendingUser.getPassword()
         );
 
-        user.setFirstName(signUpRequest.getFirstName());
-        user.setLastName(signUpRequest.getLastName());
-        user.setPhone(signUpRequest.getPhone());
+        user.setFirstName(pendingUser.getFirstName());
+        user.setLastName(pendingUser.getLastName());
+        user.setPhone(pendingUser.getPhone());
 
-        // Assign roles
-        Set<String> strRoles = signUpRequest.getRoles();
+        Set<String> strRoles = pendingUser.getRoles();
         Set<Role> roles = new HashSet<>();
 
         if (strRoles == null || strRoles.isEmpty()) {
             Role studentRole = roleRepository.findByName(ERole.ROLE_STUDENT)
-                    .orElseThrow(() -> new RuntimeException("Error: Role ROLE_STUDENT is not found. Please seed the database."));
+                    .orElseThrow(() -> new RuntimeException("Error: Role ROLE_STUDENT is not found."));
             roles.add(studentRole);
-            System.out.println("Assigned default role: ROLE_STUDENT");
         } else {
             strRoles.forEach(role -> {
                 switch (role.toLowerCase()) {
@@ -149,22 +193,17 @@ public class AuthController {
                         Role teacherRole = roleRepository.findByName(ERole.ROLE_TEACHER)
                                 .orElseThrow(() -> new RuntimeException("Error: Role ROLE_TEACHER is not found."));
                         roles.add(teacherRole);
-                        System.out.println("Assigned role: ROLE_TEACHER");
                         break;
-
                     case "parent":
                         Role parentRole = roleRepository.findByName(ERole.ROLE_PARENT)
                                 .orElseThrow(() -> new RuntimeException("Error: Role ROLE_PARENT is not found."));
                         roles.add(parentRole);
-                        System.out.println("Assigned role: ROLE_PARENT");
                         break;
-
                     case "student":
                     default:
                         Role studentRole = roleRepository.findByName(ERole.ROLE_STUDENT)
                                 .orElseThrow(() -> new RuntimeException("Error: Role ROLE_STUDENT is not found."));
                         roles.add(studentRole);
-                        System.out.println("Assigned role: ROLE_STUDENT");
                         break;
                 }
             });
@@ -172,41 +211,37 @@ public class AuthController {
 
         user.setRoles(roles);
         userRepository.save(user);
-        System.out.println("User saved with ID: " + user.getId());
+        System.out.println("Verified user saved with ID: " + user.getId());
 
-        // Create role-specific profile(s)
         for (Role role : roles) {
             switch (role.getName()) {
                 case ROLE_STUDENT:
                     if (!studentProfileRepository.existsByUserId(user.getId())) {
-                        StudentProfile studentProfile = new StudentProfile(user.getId());
-                        studentProfileRepository.save(studentProfile);
+                        studentProfileRepository.save(new StudentProfile(user.getId()));
                         System.out.println("Student profile created");
                     }
                     break;
-
                 case ROLE_TEACHER:
                     if (!teacherProfileRepository.existsByUserId(user.getId())) {
-                        TeacherProfile teacherProfile = new TeacherProfile(user.getId());
-                        teacherProfileRepository.save(teacherProfile);
+                        teacherProfileRepository.save(new TeacherProfile(user.getId()));
                         System.out.println("Teacher profile created");
                     }
                     break;
-
                 case ROLE_PARENT:
                     if (!parentProfileRepository.existsByUserId(user.getId())) {
-                        ParentProfile parentProfile = new ParentProfile(user.getId());
-                        parentProfileRepository.save(parentProfile);
+                        parentProfileRepository.save(new ParentProfile(user.getId()));
                         System.out.println("Parent profile created");
                     }
                     break;
-
                 default:
                     break;
             }
         }
 
+        pendingUserRepository.deleteByEmail(request.getEmail());
+        System.out.println("Pending user deleted");
         System.out.println("Registration completed successfully");
-        return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
+
+        return ResponseEntity.ok(new MessageResponse("Registration completed successfully."));
     }
 }
