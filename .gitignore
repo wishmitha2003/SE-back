@@ -38,3 +38,9 @@ Thumbs.db
 
 ### Logs ###
 *.log
+
+### Sensitive config ###
+src/main/resources/application.properties
+src/main/resources/application.yml
+.env
+.env.*
