@@ -1,23 +1,10 @@
 package com.ezyenglish.controller;
 
-import com.ezyenglish.dto.request.LoginRequest;
-import com.ezyenglish.dto.request.SignupRequest;
-import com.ezyenglish.dto.request.VerifyOtpRequest;
+import com.ezyenglish.dto.request.*;
 import com.ezyenglish.dto.response.JwtResponse;
 import com.ezyenglish.dto.response.MessageResponse;
-import com.ezyenglish.model.ERole;
-import com.ezyenglish.model.ParentProfile;
-import com.ezyenglish.model.PendingUser;
-import com.ezyenglish.model.Role;
-import com.ezyenglish.model.StudentProfile;
-import com.ezyenglish.model.TeacherProfile;
-import com.ezyenglish.model.User;
-import com.ezyenglish.repository.ParentProfileRepository;
-import com.ezyenglish.repository.PendingUserRepository;
-import com.ezyenglish.repository.RoleRepository;
-import com.ezyenglish.repository.StudentProfileRepository;
-import com.ezyenglish.repository.TeacherProfileRepository;
-import com.ezyenglish.repository.UserRepository;
+import com.ezyenglish.model.*;
+import com.ezyenglish.repository.*;
 import com.ezyenglish.security.jwt.JwtUtils;
 import com.ezyenglish.security.service.UserDetailsImpl;
 import com.ezyenglish.service.EmailService;
@@ -42,6 +29,9 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
+
+    @Autowired
+    private PasswordResetOtpRepository passwordResetOtpRepository;
 
     @Autowired
     private PendingUserRepository pendingUserRepository;
@@ -243,5 +233,113 @@ public class AuthController {
         System.out.println("Registration completed successfully");
 
         return ResponseEntity.ok(new MessageResponse("Registration completed successfully."));
+    }
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("User not found with this email"));
+
+        passwordResetOtpRepository.deleteByEmail(request.getEmail());
+
+        String otp = String.format("%06d", new java.util.Random().nextInt(1000000));
+
+        PasswordResetOtp resetOtp = new PasswordResetOtp(
+                user.getEmail(),
+                otp,
+                java.time.LocalDateTime.now().plusMinutes(10)
+        );
+
+        passwordResetOtpRepository.save(resetOtp);
+        emailService.sendPasswordResetOtp(user.getEmail(), otp);
+
+        return ResponseEntity.ok(new MessageResponse("Password reset OTP sent to email."));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        PasswordResetOtp resetOtp = passwordResetOtpRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("Reset request not found"));
+
+        if (!resetOtp.getOtp().equals(request.getOtp())) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Invalid OTP"));
+        }
+
+        if (resetOtp.getExpiryTime().isBefore(java.time.LocalDateTime.now())) {
+            return ResponseEntity.badRequest().body(new MessageResponse("OTP expired"));
+        }
+
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setPassword(encoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        passwordResetOtpRepository.deleteByEmail(request.getEmail());
+
+        return ResponseEntity.ok(new MessageResponse("Password reset successfully."));
+    }
+
+    @PostMapping("/send-reset-password-otp")
+    public ResponseEntity<?> sendResetPasswordOtp(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(401)
+                    .body(new MessageResponse("User is not authenticated."));
+        }
+
+        String loginValue = authentication.getName();
+
+        User user = userRepository.findByUsernameOrEmail(loginValue, loginValue)
+                .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
+        passwordResetOtpRepository.deleteByEmail(user.getEmail());
+
+        String otp = String.format("%06d", new Random().nextInt(1000000));
+
+        PasswordResetOtp resetOtp = new PasswordResetOtp(
+                user.getEmail(),
+                otp,
+                LocalDateTime.now().plusMinutes(10)
+        );
+
+        passwordResetOtpRepository.save(resetOtp);
+        emailService.sendPasswordResetOtp(user.getEmail(), otp);
+
+        return ResponseEntity.ok(new MessageResponse("Password reset OTP sent to your registered email."));
+    }
+
+    @PostMapping("/reset-password-authenticated")
+    public ResponseEntity<?> resetPasswordAuthenticated(
+            @Valid @RequestBody AuthenticatedResetPasswordRequest request,
+            Authentication authentication) {
+
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(401)
+                    .body(new MessageResponse("User is not authenticated."));
+        }
+
+        String loginValue = authentication.getName();
+
+        User user = userRepository.findByUsernameOrEmail(loginValue, loginValue)
+                .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
+        PasswordResetOtp resetOtp = passwordResetOtpRepository.findByEmail(user.getEmail())
+                .orElseThrow(() -> new RuntimeException("Reset request not found"));
+
+        if (!resetOtp.getOtp().equals(request.getOtp())) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Invalid OTP"));
+        }
+
+        if (resetOtp.getExpiryTime().isBefore(LocalDateTime.now())) {
+            return ResponseEntity.badRequest().body(new MessageResponse("OTP expired"));
+        }
+
+        user.setPassword(encoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        passwordResetOtpRepository.deleteByEmail(user.getEmail());
+
+        return ResponseEntity.ok(new MessageResponse("Password reset successfully."));
     }
 }
