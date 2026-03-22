@@ -14,7 +14,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -73,7 +72,6 @@ public class AuthController {
                 )
         );
 
-        SecurityContextHolder.getContext().setAuthentication(authentication);
         String jwt = jwtUtils.generateJwtToken(authentication);
 
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
@@ -342,5 +340,49 @@ public class AuthController {
         passwordResetOtpRepository.deleteByEmail(user.getEmail());
 
         return ResponseEntity.ok(new MessageResponse("Password reset successfully."));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(401)
+                    .body(new MessageResponse("User is not authenticated."));
+        }
+
+        String loginValue = authentication.getName();
+
+        User user = userRepository.findByUsernameOrEmail(loginValue, loginValue)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return ResponseEntity.ok(user);
+    }
+
+    @PutMapping("/update-profile")
+    public ResponseEntity<?> updateProfile(
+            @Valid @RequestBody UpdateProfileRequest request,
+            Authentication authentication) {
+
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(401)
+                    .body(new MessageResponse("User is not authenticated."));
+        }
+
+        String loginValue = authentication.getName();
+
+        User user = userRepository.findByUsernameOrEmail(loginValue, loginValue)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+        user.setPhone(request.getPhone());
+        user.setAddress(request.getAddress());
+        user.setProfileImageUrl(request.getProfileImageUrl());
+
+
+        userRepository.save(user);
+
+        return ResponseEntity.ok(new MessageResponse("Profile updated successfully."));
     }
 }
