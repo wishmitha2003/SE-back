@@ -385,4 +385,73 @@ public class AuthController {
 
         return ResponseEntity.ok(new MessageResponse("Profile updated successfully."));
     }
+
+    @PostMapping("/resend-registration-otp")
+    public ResponseEntity<?> resendRegistrationOtp(@Valid @RequestBody EmailRequest request) {
+
+        PendingUser pendingUser = pendingUserRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("Pending registration not found"));
+
+        String otp = String.format("%06d", new Random().nextInt(1000000));
+
+        pendingUser.setOtp(otp);
+        pendingUser.setOtpExpiryTime(LocalDateTime.now().plusMinutes(10));
+
+        pendingUserRepository.save(pendingUser);
+        emailService.sendOtpEmail(pendingUser.getEmail(), otp);
+
+        return ResponseEntity.ok(new MessageResponse("OTP resent successfully."));
+    }
+
+    @PostMapping("/resend-forgot-password-otp")
+    public ResponseEntity<?> resendForgotPasswordOtp(@Valid @RequestBody EmailRequest request) {
+
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        passwordResetOtpRepository.deleteByEmail(request.getEmail());
+
+        String otp = String.format("%06d", new Random().nextInt(1000000));
+
+        PasswordResetOtp resetOtp = new PasswordResetOtp(
+                user.getEmail(),
+                otp,
+                LocalDateTime.now().plusMinutes(10)
+        );
+
+        passwordResetOtpRepository.save(resetOtp);
+        emailService.sendPasswordResetOtp(user.getEmail(), otp);
+
+        return ResponseEntity.ok(new MessageResponse("OTP resent successfully."));
+    }
+
+    @PostMapping("/resend-reset-password-otp")
+    public ResponseEntity<?> resendResetPasswordOtp(Authentication authentication) {
+
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(401)
+                    .body(new MessageResponse("User not authenticated"));
+        }
+
+        String loginValue = authentication.getName();
+
+        User user = userRepository.findByUsernameOrEmail(loginValue, loginValue)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        passwordResetOtpRepository.deleteByEmail(user.getEmail());
+
+        String otp = String.format("%06d", new Random().nextInt(1000000));
+
+        PasswordResetOtp resetOtp = new PasswordResetOtp(
+                user.getEmail(),
+                otp,
+                LocalDateTime.now().plusMinutes(10)
+        );
+
+        passwordResetOtpRepository.save(resetOtp);
+        emailService.sendPasswordResetOtp(user.getEmail(), otp);
+
+        return ResponseEntity.ok(new MessageResponse("OTP resent successfully."));
+    }
 }
