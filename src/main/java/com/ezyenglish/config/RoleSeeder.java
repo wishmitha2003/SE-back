@@ -19,8 +19,8 @@ public class RoleSeeder {
             if (roleRepository.findByName(ERole.ROLE_TEACHER).isEmpty()) {
                 roleRepository.save(new Role(ERole.ROLE_TEACHER));
             }
-            if (roleRepository.findByName(ERole.ROLE_PARENT).isEmpty()) {
-                roleRepository.save(new Role(ERole.ROLE_PARENT));
+            if (roleRepository.findByName(ERole.ROLE_ADMIN).isEmpty()) {
+                roleRepository.save(new Role(ERole.ROLE_ADMIN));
             }
         };
     }

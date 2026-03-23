@@ -14,14 +14,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * ParentProfile document — stores parent-specific data,
+ * AdminProfile document — stores admin-specific data,
  * including linked child student IDs.
  */
-@Document(collection = "parent_profiles")
+@Document(collection = "admin_profiles")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ParentProfile {
+public class AdminProfile {
 
     @Id
     private String id;
@@ -39,7 +39,7 @@ public class ParentProfile {
     @LastModifiedDate
     private Instant updatedAt;
 
-    public ParentProfile(String userId) {
+    public AdminProfile(String userId) {
         this.userId = userId;
     }
 }

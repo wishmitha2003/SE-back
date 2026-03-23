@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 /**
  * Database seeder — pre-populates the roles collection on startup
  * if it is empty. This ensures ROLE_STUDENT, ROLE_TEACHER, and
- * ROLE_PARENT are always available.
+ * ROLE_ADMIN are always available.
  */
 @Component
 public class DatabaseSeeder implements CommandLineRunner {
@@ -29,9 +29,9 @@ public class DatabaseSeeder implements CommandLineRunner {
 
             roleRepository.save(new Role(ERole.ROLE_STUDENT));
             roleRepository.save(new Role(ERole.ROLE_TEACHER));
-            roleRepository.save(new Role(ERole.ROLE_PARENT));
+            roleRepository.save(new Role(ERole.ROLE_ADMIN));
 
-            logger.info("Roles seeded successfully: ROLE_STUDENT, ROLE_TEACHER, ROLE_PARENT");
+            logger.info("Roles seeded successfully: ROLE_STUDENT, ROLE_TEACHER, ROLE_ADMIN");
         } else {
             logger.info("Roles collection already populated. Skipping seed.");
         }

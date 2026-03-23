@@ -37,18 +37,18 @@ src/main/java/com/ezyenglish/
 ├── exception/
 │   └── GlobalExceptionHandler.java     # Structured error responses
 ├── model/
-│   ├── ERole.java                      # ROLE_STUDENT, ROLE_TEACHER, ROLE_PARENT
+│   ├── ERole.java                      # ROLE_STUDENT, ROLE_TEACHER, ROLE_ADMIN
 │   ├── Role.java
 │   ├── User.java
 │   ├── StudentProfile.java
 │   ├── TeacherProfile.java
-│   └── ParentProfile.java
+│   └── AdminProfile.java
 ├── repository/
 │   ├── UserRepository.java
 │   ├── RoleRepository.java
 │   ├── StudentProfileRepository.java
 │   ├── TeacherProfileRepository.java
-│   └── ParentProfileRepository.java
+│   └── AdminProfileRepository.java
 ├── security/
 │   ├── WebSecurityConfig.java          # Security filter chain, CORS, CSRF
 │   ├── jwt/
@@ -86,7 +86,7 @@ src/main/java/com/ezyenglish/
    mvnw.cmd spring-boot:run
    ```
 
-3. Roles (`ROLE_STUDENT`, `ROLE_TEACHER`, `ROLE_PARENT`) are **auto-seeded** on first startup.
+3. Roles (`ROLE_STUDENT`, `ROLE_TEACHER`, `ROLE_ADMIN`) are **auto-seeded** on first startup.
 
 ## API Endpoints
 

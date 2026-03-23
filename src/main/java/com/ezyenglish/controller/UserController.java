@@ -73,7 +73,7 @@ public class UserController {
         boolean isOwnProfile = userDetails.getId().equals(id);
         boolean hasElevatedRole = auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_TEACHER") ||
-                        a.getAuthority().equals("ROLE_PARENT"));
+                        a.getAuthority().equals("ROLE_ADMIN"));
 
         if (!isOwnProfile && !hasElevatedRole) {
             return ResponseEntity.status(403).build();

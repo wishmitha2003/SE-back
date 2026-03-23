@@ -48,7 +48,7 @@ public class AuthController {
     private TeacherProfileRepository teacherProfileRepository;
 
     @Autowired
-    private ParentProfileRepository parentProfileRepository;
+    private AdminProfileRepository adminProfileRepository;
 
     @Autowired
     private PasswordEncoder encoder;
@@ -131,10 +131,10 @@ public class AuthController {
                                 .orElseThrow(() -> new RuntimeException("Error: Role ROLE_TEACHER is not found."));
                         roles.add(teacherRole);
                         break;
-                    case "parent":
-                        Role parentRole = roleRepository.findByName(ERole.ROLE_PARENT)
-                                .orElseThrow(() -> new RuntimeException("Error: Role ROLE_PARENT is not found."));
-                        roles.add(parentRole);
+                    case "admin":
+                        Role adminRole = roleRepository.findByName(ERole.ROLE_ADMIN)
+                                .orElseThrow(() -> new RuntimeException("Error: Role ROLE_ADMIN is not found."));
+                        roles.add(adminRole);
                         break;
                     case "student":
                     default:
@@ -164,10 +164,10 @@ public class AuthController {
                         teacherProfileRepository.save(teacherProfile);
                     }
                     break;
-                case ROLE_PARENT:
-                    if (!parentProfileRepository.existsByUserId(user.getId())) {
-                        ParentProfile parentProfile = new ParentProfile(user.getId());
-                        parentProfileRepository.save(parentProfile);
+                case ROLE_ADMIN:
+                    if (!adminProfileRepository.existsByUserId(user.getId())) {
+                        AdminProfile adminProfile = new AdminProfile(user.getId());
+                        adminProfileRepository.save(adminProfile);
                     }
                     break;
             }

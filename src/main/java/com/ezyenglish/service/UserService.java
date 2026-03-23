@@ -26,7 +26,7 @@ public class UserService {
         private TeacherProfileRepository teacherProfileRepository;
 
         @Autowired
-        private ParentProfileRepository parentProfileRepository;
+        private AdminProfileRepository adminProfileRepository;
 
         /**
          * Get a full user response (user + role-specific profile) by user ID.
@@ -110,7 +110,7 @@ public class UserService {
                 // Delete associated profiles
                 studentProfileRepository.findByUserId(userId).ifPresent(p -> studentProfileRepository.delete(p));
                 teacherProfileRepository.findByUserId(userId).ifPresent(p -> teacherProfileRepository.delete(p));
-                parentProfileRepository.findByUserId(userId).ifPresent(p -> parentProfileRepository.delete(p));
+                adminProfileRepository.findByUserId(userId).ifPresent(p -> adminProfileRepository.delete(p));
 
                 userRepository.delete(user);
         }
@@ -152,8 +152,8 @@ public class UserService {
                         response.setBio(profile.getBio());
                 });
 
-                // Enrich with Parent profile
-                parentProfileRepository.findByUserId(user.getId()).ifPresent(profile -> {
+                // Enrich with Admin profile
+                adminProfileRepository.findByUserId(user.getId()).ifPresent(profile -> {
                         response.setChildStudentIds(profile.getChildStudentIds());
                         response.setRelationship(profile.getRelationship());
                 });
@@ -170,7 +170,7 @@ public class UserService {
                 boolean isTeacher = user.getRoles().stream()
                                 .anyMatch(r -> r.getName() == ERole.ROLE_TEACHER);
                 boolean isParent = user.getRoles().stream()
-                                .anyMatch(r -> r.getName() == ERole.ROLE_PARENT);
+                                .anyMatch(r -> r.getName() == ERole.ROLE_ADMIN);
 
                 if (isStudent && (request.getGradeLevel() != null)) {
                         StudentProfile profile = studentProfileRepository.findByUserId(user.getId())
@@ -193,11 +193,11 @@ public class UserService {
                 }
 
                 if (isParent && (request.getRelationship() != null)) {
-                        ParentProfile profile = parentProfileRepository.findByUserId(user.getId())
-                                        .orElse(new ParentProfile(user.getId()));
+                        AdminProfile profile = adminProfileRepository.findByUserId(user.getId())
+                                        .orElse(new AdminProfile(user.getId()));
                         if (request.getRelationship() != null)
                                 profile.setRelationship(request.getRelationship());
-                        parentProfileRepository.save(profile);
+                        adminProfileRepository.save(profile);
                 }
         }
 }

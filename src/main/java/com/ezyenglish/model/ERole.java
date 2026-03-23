@@ -6,5 +6,5 @@ package com.ezyenglish.model;
 public enum ERole {
     ROLE_STUDENT,
     ROLE_TEACHER,
-    ROLE_PARENT
+    ROLE_ADMIN
 }
